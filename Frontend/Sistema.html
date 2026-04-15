@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peyem.POS Ultra Pro</title>
+    <link href="https://googleapis.com" rel="stylesheet">
+    <link rel="stylesheet" href="https://cloudflare.com">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #64748b;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --dark: #0f172a;
+            --light: #f8fafc;
+            --border: #e2e8f0;
+            --sidebar-width: 260px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+        body { background: #f1f5f9; color: var(--dark); overflow: hidden; }
+
+        /* LAYOUT PRINCIPAL */
+        .app-container {
+            display: grid;
+            grid-template-columns: var(--sidebar-width) 1fr 400px;
+            height: 100vh;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            background: var(--dark);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem;
+        }
+
+        .logo { font-size: 1.5rem; font-weight: 700; margin-bottom: 2rem; color: #60a5fa; display: flex; align-items: center; gap: 10px; }
+
+        .nav-menu { flex: 1; }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px; padding: 12px;
+            border-radius: 8px; cursor: pointer; transition: 0.3s; margin-bottom: 5px; color: #94a3b8;
+        }
+        .nav-item:hover, .nav-item.active { background: #1e293b; color: white; }
+
+        /* ÁREA DE PRODUTOS (MEIO) */
+        .main-content {
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .search-bar {
+            background: white; padding: 1rem; border-radius: 12px;
+            display: flex; gap: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .search-bar input { flex: 1; border: 1px solid var(--border); padding: 10px; border-radius: 8px; outline: none; }
+
+        .categories { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; }
+        .cat-chip {
+            background: white; padding: 8px 16px; border-radius: 20px; white-space: nowrap;
+            cursor: pointer; border: 1px solid var(--border); font-size: 0.9rem; transition: 0.2s;
+        }
+        .cat-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .product-card {
+            background: white; border-radius: 12px; padding: 1rem;
+            text-align: center; cursor: pointer; transition: 0.2s;
+            border: 1px solid transparent; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+        .product-card:hover { transform: translateY(-3px); border-color: var(--primary); }
+        .product-card img { width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px; }
+        .product-card .price { font-weight: 700; color: var(--primary); margin-top: 5px; }
+        .product-card .stock { font-size: 0.75rem; color: var(--secondary); }
+
+        /* CARRINHO (DIREITA) */
+        .cart-panel {
+            background: white; border-left: 1px solid var(--border);
+            display: flex; flex-direction: column; padding: 1.5rem;
+        }
+
+        .cart-items { flex: 1; overflow-y: auto; }
+        .cart-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 0; border-bottom: 1px solid var(--border);
+        }
+        .qty-control { display: flex; align-items: center; gap: 10px; }
+        .qty-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: white; cursor: pointer; }
+
+        .cart-summary { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px dashed var(--border); }
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--secondary); }
+        .summary-total { display: flex; justify-content: space-between; font-size: 1.5rem; font-weight: 800; color: var(--dark); margin: 15px 0; }
+
+        .action-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn { padding: 14px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-pay { background: var(--success); color: white; grid-column: span 2; }
+        .btn-cancel { background: #fee2e2; color: var(--danger); }
+        .btn-hold { background: #fef3c7; color: var(--warning); }
+        .btn:hover { opacity: 0.9; }
+
+        /* RECIBO (HIDDEN) */
+        #receipt-print { display: none; }
+        @media print {
+            body * { display: none; }
+            #receipt-print { display: block; width: 80mm; padding: 5mm; font-family: monospace; }
+        }
+        #receipt-print {
+    display: none; /* Esconde no ecrã normal */
+}
+
+@media print {
+    /* Esconde tudo o resto na hora de imprimir */
+    body * {
+        visibility: hidden;
+    }
+    /* Mostra apenas o recibo */
+    #receipt-print, #receipt-print * {
+        visibility: visible;
+        display: block !important;
+    }
+    #receipt-print {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 80mm; /* Largura padrão de impressora térmica */
+    }
+}
+
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="logo">
+            <i class="fas fa-shopping-basket"></i> Peyem.POS
+        </div>
+        <nav class="nav-menu">
+            <div class="nav-item active"><i class="fas fa-cash-register"></i> PDV</div>
+            <div class="nav-item"><i class="fas fa-boxes-stacked"></i> Inventário</div>
+            <div class="nav-item"><i class="fas fa-chart-line"></i> Relatórios</div>
+            <div class="nav-item"><i class="fas fa-users"></i> Clientes</div>
+            <div class="nav-item"><i class="fas fa-gear"></i> Configurações</div>
+        </nav>
+        <div class="nav-item"><i class="fas fa-right-from-bracket"></i> Sair</div>
+    </aside>
+
+    <!-- ÁREA DE VENDA -->
+    <main class="main-content">
+        <header class="search-bar">
+            <input type="text" id="searchInput" placeholder="Pesquisar produto pelo nome ou código de barras (F2)..." oninput="filterProducts()">
+            <button class="btn" style="background: var(--light); border: 1px solid var(--border)"><i class="fas fa-barcode"></i> Scan</button>
+        </header>
+
+        <div class="categories">
+            <div class="cat-chip active">Todos</div>
+            <div class="cat-chip">Mercearia</div>
+            <div class="cat-chip">Bebidas</div>
+            <div class="cat-chip">Limpeza</div>
+            <div class="cat-chip">Talho</div>
+            <div class="cat-chip">Padaria</div>
+        </div>
+
+        <div class="products-grid" id="productGrid">
+            <!-- Renderizado via JS -->
+        </div>
+    </main>
+
+    <!-- PAINEL DO CARRINHO -->
+    <aside class="cart-panel">
+        <div style="display:flex; justify-content:space-between; margin-bottom: 1rem;">
+            <h3>Carrinho Atual</h3>
+            <span id="itemsCount" class="badge">0 itens</span>
+        </div>
+
+        <div class="cart-items" id="cartContainer">
+            <!-- Itens do carrinho -->
+        </div>
+
+        <div class="cart-summary">
+            <div class="summary-row">
+                <span>Subtotal</span>
+                <span id="subtotal">0,00 MT</span>
+            </div>
+            <div class="summary-row">
+                <span>Imposto (IVA 16%)</span>
+                <span id="tax">0,00 MT</span>
+            </div>
+            <div class="summary-total">
+                <span>TOTAL</span>
+                <span id="totalAmount">0,00 MT</span>
+            </div>
+
+            <div class="action-btns">
+                <button class="btn btn-hold"><i class="fas fa-pause"></i> Pausar</button>
+                <button class="btn btn-cancel" onclick="clearCart()"><i class="fas fa-trash"></i> Limpar</button>
+                <button class="btn btn-pay" onclick="handleCheckout()">
+                    <i class="fas fa-check-circle"></i> FINALIZAR VENDA (F9)
+                </button>
+            </div>
+        </div>
+    </aside>
+</div>
+<div id="receipt-print">
+    <div style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px;">
+        <h2 style="margin: 0;">PEYEM SUPERMERCADO</h2>
+        <p style="font-size: 12px; margin: 5px 0;">Av. Moçambique, Maputo</p>
+        <p style="font-size: 12px; margin: 0;">NUIT: 400123456</p>
+    </div>
+
+    <div id="receipt-details" style="font-size: 12px;">
+        <!-- Preenchido via JS -->
+    </div>
+
+    <div style="border-top: 1px dashed #000; margin-top: 10px; padding-top: 10px; text-align: center;">
+        <p>Obrigado pela preferência!</p>
+        <p id="receipt-date" style="font-size: 10px;"></p>
+    </div>
+</div>
+
+<!-- RECIBO OCULTO PARA IMPRESSÃO -->
+<div id="receipt-print"></div>
+
+<script>
+    // BD SIMULADA (No futuro: fetch('/api/products'))
+    const products = [
+        { id: 1, name: "Arroz 5kg", price: 350.00, stock: 45, category: "Mercearia", img: "🍚" },
+        { id: 2, name: "Óleo Alimentar 1L", price: 145.00, stock: 20, category: "Mercearia", img: "🍶" },
+        { id: 3, name: "Cerveja 2M 330ml", price: 65.00, stock: 120, category: "Bebidas", img: "🍺" },
+        { id: 4, name: "Sabão em Pó Omo", price: 120.00, stock: 15, category: "Limpeza", img: "🧼" },
+        { id: 5, name: "Pão de Forma", price: 85.00, stock: 10, category: "Padaria", img: "🍞" },
+        { id: 6, name: "Frango Inteiro kg", price: 290.00, stock: 8, category: "Talho", img: "🍗" },
+    ];
+
+    let cart = [];
+
+    // Inicialização
+    function init() {
+        renderProducts(products);
+        updateCartUI();
+    }
+
+    function renderProducts(list) {
+        const grid = document.getElementById('productGrid');
+        grid.innerHTML = list.map(p => `
+            <div class="product-card" onclick="addToCart(${p.id})">
+                <div style="font-size: 3rem">${p.img}</div>
+                <div style="font-weight:600; margin-top:10px">${p.name}</div>
+                <div class="price">${p.price.toFixed(2)} MT</div>
+                <div class="stock">Stock: ${p.stock}</div>
+            </div>
+        `).join('');
+    }
+
+    function addToCart(id) {
+        const product = products.find(p => p.id === id);
+        const existing = cart.find(item => item.id === id);
+
+        if (existing) {
+            existing.qty++;
+        } else {
+            cart.push({ ...product, qty: 1 });
+        }
+        updateCartUI();
+    }
+
+    function updateQty(index, delta) {
+        cart[index].qty += delta;
+        if (cart[index].qty <= 0) cart.splice(index, 1);
+        updateCartUI();
+    }
+
+    function updateCartUI() {
+        const container = document.getElementById('cartContainer');
+        container.innerHTML = cart.map((item, index) => `
+            <div class="cart-item">
+                <div>
+                    <div style="font-weight:600">${item.name}</div>
+                    <div style="font-size:0.8rem; color:var(--secondary)">${item.price.toFixed(2)} MT</div>
+                </div>
+                <div class="qty-control">
+                    <button class="qty-btn" onclick="updateQty(${index}, -1)">-</button>
+                    <span>${item.qty}</span>
+                    <button class="qty-btn" onclick="updateQty(${index}, 1)">+</button>
+                </div>
+                <div style="font-weight:600">${(item.price * item.qty).toFixed(2)}</div>
+            </div>
+        `).join('');
+
+        const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+        const tax = subtotal * 0.16;
+        const total = subtotal + tax;
+
+        document.getElementById('subtotal').innerText = subtotal.toFixed(2) + " MT";
+        document.getElementById('tax').innerText = tax.toFixed(2) + " MT";
+        document.getElementById('totalAmount').innerText = total.toFixed(2) + " MT";
+        document.getElementById('itemsCount').innerText = `${cart.length} itens`;
+    }
+
+    function clearCart() {
+        if(confirm("Deseja cancelar esta venda?")) {
+            cart = [];
+            updateCartUI();
+        }
+    }
+
+    function filterProducts() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = products.filter(p => p.name.toLowerCase().includes(query));
+        renderProducts(filtered);
+    }
+
+    function handleCheckout() {
+        if (cart.length === 0) return alert("Carrinho vazio!");
+        
+        const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0) * 1.16;
+        const cash = prompt(`Total com IVA: ${total.toFixed(2)} MT\nValor entregue pelo cliente:`);
+        
+        if (cash && parseFloat(cash) >= total) {
+            const troco = parseFloat(cash) - total;
+            alert(`Venda realizada com sucesso!\nTroco: ${troco.toFixed(2)} MT`);
+            
+            // Aqui enviarias os dados para o teu BACKEND via fetch('/vendas', {method:'POST'...})
+            
+            cart = [];
+            updateCartUI();
+        } else if(cash) {
+            alert("Valor insuficiente!");
+        }
+    }
+      
+    async function handleCheckout() {
+    if (cart.length === 0) return alert("Carrinho vazio!");
+
+    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    const total = subtotal * 1.16; // IVA incluído
+    
+    const cash = prompt(`Total: ${total.toFixed(2)} MT\nValor entregue:`);
+    
+    if (cash && parseFloat(cash) >= total) {
+        const troco = parseFloat(cash) - total;
+
+        const dadosVenda = {
+            carrinho: cart,
+            total: total,
+            pago: parseFloat(cash),
+            troco: troco
+        };
+
+        try {
+            // 1. Envia para o Back-end
+            const response = await fetch('http://localhost:3000/api/venda', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dadosVenda)
+            });
+
+            const resultado = await response.json();
+
+            if (response.ok) {
+                // 2. Gera e imprime o recibo
+                gerarReciboVisual(dadosVenda, resultado.vendaId);
+                window.print(); // Abre a janela de impressão
+
+                // 3. Limpa e reinicia
+                cart = [];
+                updateCartUI();
+                init(); 
+            }
+        } catch (error) {
+            alert("Erro ao processar venda no servidor.");
+        }
+    }
+}
+
+// Função auxiliar para montar o texto do recibo
+function gerarReciboVisual(venda, id) {
+    const details = document.getElementById('receipt-details');
+    const dateEl = document.getElementById('receipt-date');
+    
+    let itensHTML = `<strong>DOC: #${id}</strong><br><br>`;
+    itensHTML += `<div style="display:flex; justify-content:space-between; font-weight:bold; border-bottom:1px solid #eee">
+                    <span>Item</span><span>Qtd</span><span>Total</span>
+                  </div>`;
+
+    venda.carrinho.forEach(item => {
+        itensHTML += `
+            <div style="display:flex; justify-content:space-between; margin-top:5px">
+                <span>${item.name}</span>
+                <span>${item.qty}x${item.price.toFixed(2)}</span>
+                <span>${(item.qty * item.price).toFixed(2)}</span>
+            </div>`;
+    });
+
+    itensHTML += `
+        <div style="border-top:1px solid #000; margin-top:10px; padding-top:5px; text-align:right">
+            <strong>TOTAL: ${venda.total.toFixed(2)} MT</strong><br>
+            Recebido: ${venda.pago.toFixed(2)} MT<br>
+            Troco: ${venda.troco.toFixed(2)} MT
+        </div>`;
+
+    details.innerHTML = itensHTML;
+    dateEl.innerText = new Date().toLocaleString();
+}
+    // Atalhos de Teclado
+    window.addEventListener('keydown', (e) => {
+        if(e.key === 'F9') handleCheckout();
+        if(e.key === 'F2') document.getElementById('searchInput').focus();
+    });
+
+    init();
+</script>
+</body>
+</html>
