@@ -1,11 +1,17 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { Pool } = require('pg');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '../Frontend')));
 
+// Qualquer rota que não seja da API, manda pro index.html
+app.get('/*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../Frontend/Sistema.html'));
+});
 // Conexão com PostgreSQL
 const db = new Pool({
   connectionString: process.env.DATABASE_URL,
