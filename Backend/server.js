@@ -8,11 +8,13 @@ app.use(cors({
     methods: ['GET', 'POST']
 }));
 app.use(express.json());
-
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
+const db = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 const bodyParser = require('body-parser');
 
-const db = new sqlite3.Database('./supermercado.db');
 
 app.use(cors());
 app.use(bodyParser.json());
